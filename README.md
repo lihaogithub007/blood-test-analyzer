@@ -351,9 +351,46 @@ pip install -r requirements.txt
 
 ### 更换大模型
 
-修改 `pdf_processor.py` 中的 `ZHIPU_API_URL` 和 `payload.model`，可切换到其他模型：
+本项目目前默认使用智谱的 OpenAPI（`chat/completions` 风格）调用视觉模型做 PDF 结构化抽取。
+
+#### 需要改哪些地方
+
+主要集中在 `pdf_processor.py` 的 `extract_report_data()`：
+
+- **API 地址**：`ZHIPU_API_URL`
+- **模型名**：`payload["model"]`（当前为 `glm-4v-flash`）
+- **鉴权方式**：`headers["Authorization"]`（当前为 `Bearer <API_KEY>`）
+- **请求体格式**：
+  - `messages[0].content` 由 `text + image_url(data:image/png;base64,...)` 组成
+  - 如果换成别的厂商 API，通常需要把图片字段、role/content 的结构按其文档调整
+- **响应解析**：当前取 `data["choices"][0]["message"]["content"]`，换 API 时需要同步修改
+
+#### 更换智谱模型（同一 API 体系内）
+
+仅需改 `payload["model"]`：
+
 - `glm-4v`：更强视觉能力
 - `glm-4v-flash`：更快速度，免费额度更多
+
+#### 更换为其他大模型 / 其他 API（不同厂商）
+
+建议做法：
+
+1) 在 `pdf_processor.py` 中新增一个“适配器函数”（比如 `call_llm_api(prompt, images, api_key)`），把**HTTP 调用与响应解析**集中封装  
+2) 保持 `extract_report_data()` 输出结构不变：
+   - **化验类**：`{"date": "...", "items": [...]}`（写入 `test_items`）
+   - **结论类**：`{"date": "...", "facts": [...]}`（写入 `report_facts`）
+
+这样后端/前端/数据库不需要跟着厂商 API 改动。
+
+#### API Key 配置方式
+
+目前后端从环境变量读取：
+
+- `.env`：`ZHIPUAI_API_KEY=...`（不要提交）
+- `app.py`：`API_KEY = os.getenv("ZHIPUAI_API_KEY")`
+
+如果你改成其他厂商，建议把变量名改为通用的（例如 `LLM_API_KEY`、`LLM_API_URL`），并同步更新 `.env.example` 与 `README`。
 
 ### 自定义图表样式
 

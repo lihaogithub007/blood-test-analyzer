@@ -7,39 +7,106 @@
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+
+        :root{
+            color-scheme: light;
+            --bg: #f6f7fb;
+            --panel: #ffffff;
+            --panel2: #f8fafc;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --border2: #eef2f7;
+            --brand: #2563eb;
+            --brand2: #3b82f6;
+            --danger: #ef4444;
+            --success: #10b981;
+            --shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+            --shadow2: 0 16px 50px rgba(0,0,0,0.22);
+            --radius: 12px;
+            --radius-sm: 10px;
+            --radius-xs: 8px;
+            --ring: 0 0 0 4px rgba(37, 99, 235, 0.18);
+            --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        html[data-theme="dark"]{
+            color-scheme: dark;
+            --bg: #0b1220;
+            --panel: #0f172a;
+            --panel2: #0b1220;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --border: rgba(148, 163, 184, 0.20);
+            --border2: rgba(148, 163, 184, 0.16);
+            --brand: #60a5fa;
+            --brand2: #60a5fa;
+            --danger: #fb7185;
+            --success: #34d399;
+            --shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+            --shadow2: 0 16px 56px rgba(0, 0, 0, 0.55);
+            --ring: 0 0 0 4px rgba(96, 165, 250, 0.22);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        a{ color: inherit; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
-        h1 { margin: 6px 0 0; font-size: 22px; color: #0f172a; }
+        h1 { margin: 6px 0 0; font-size: 22px; color: var(--text); letter-spacing: 0.2px; }
+        h2, h3 { color: var(--text); }
+        .section-title { font-size: 18px; margin-bottom: 16px; }
+        .subsection-title { font-size: 15px; margin: 14px 0 10px; }
+        .help-text { font-size: 12px; color: var(--muted); }
+        .kbd {
+            font-family: var(--mono);
+            font-size: 12px;
+            padding: 1px 6px;
+            border: 1px solid var(--border);
+            border-bottom-width: 2px;
+            border-radius: 8px;
+            background: var(--panel);
+            color: var(--text);
+        }
 
         .topbar {
             display: flex; gap: 12px; align-items: center; justify-content: space-between;
             margin: 10px 0 18px;
         }
         .topbar-left { display: flex; flex-direction: column; gap: 4px; }
-        .subtitle { font-size: 13px; color: #64748b; }
+        .subtitle { font-size: 13px; color: var(--muted); }
         .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .field {
             display: inline-flex; align-items: center; gap: 8px;
-            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm);
             padding: 8px 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            box-shadow: var(--shadow);
         }
-        .field label { font-size: 13px; color: #334155; }
+        .field label { font-size: 13px; color: var(--text); opacity: 0.86; }
         select, input[type="text"], input[type="date"] {
-            border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px;
-            font-size: 13px; outline: none; background: #fff; color: #0f172a;
+            border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px;
+            font-size: 13px; outline: none; background: var(--panel); color: var(--text);
         }
-        select:focus, input[type="text"]:focus, input[type="date"]:focus { border-color: #3b82f6; }
+        select:focus, input[type="text"]:focus, input[type="date"]:focus { border-color: var(--brand2); box-shadow: var(--ring); }
+        select:disabled, input[type="text"]:disabled, input[type="date"]:disabled { opacity: 0.7; cursor: not-allowed; }
         .btn {
-            border: 1px solid #e2e8f0; background: #fff; color: #0f172a;
+            border: 1px solid var(--border); background: var(--panel); color: var(--text);
             padding: 8px 12px; border-radius: 10px; cursor: pointer;
             font-size: 13px; transition: all .15s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            box-shadow: var(--shadow);
+            line-height: 1;
         }
-        .btn:hover { border-color: #3b82f6; color: #3b82f6; }
-        .btn.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+        .btn:hover { border-color: var(--brand2); color: var(--brand2); transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn:focus-visible { outline: none; box-shadow: var(--ring); border-color: var(--brand2); }
+        .btn.primary { background: var(--brand2); color: #fff; border-color: var(--brand2); }
         .btn.primary:hover { filter: brightness(0.98); }
+        .btn.ghost { background: transparent; box-shadow: none; }
+        .btn.icon { padding: 8px 10px; border-radius: 999px; }
 
         /* Tabs */
         .tabs {
@@ -47,70 +114,76 @@
             margin: 0 0 14px;
         }
         .tab {
-            padding: 8px 12px; border: 1px solid #e2e8f0; background: #fff;
+            padding: 8px 12px; border: 1px solid var(--border); background: var(--panel);
             border-radius: 999px; cursor: pointer; font-size: 13px; color: #334155;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            box-shadow: var(--shadow);
         }
-        .tab.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+        html[data-theme="dark"] .tab { color: var(--text); opacity: 0.9; }
+        .tab.active { background: var(--brand2); border-color: var(--brand2); color: #fff; }
         .tabpanes > section { display: none; }
         .tabpanes > section.active { display: block; }
 
         /* Timeline cards */
         .timeline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-        .timeline-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; background: #fff; }
+        .timeline-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; background: var(--panel); box-shadow: var(--shadow); }
         .timeline-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
-        .timeline-date { font-weight: 800; color: #0f172a; }
-        .badge { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #f1f5f9; color: #334155; }
-        .badge.red { background: #fef2f2; color: #ef4444; }
-        .badge.green { background: #ecfdf5; color: #10b981; }
+        .timeline-date { font-weight: 800; color: var(--text); }
+        .badge { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: rgba(148, 163, 184, 0.14); color: var(--text); opacity: 0.92; }
+        .badge.red { background: rgba(239, 68, 68, 0.14); color: var(--danger); }
+        .badge.green { background: rgba(16, 185, 129, 0.14); color: var(--success); }
         .fact-list { display: grid; grid-template-columns: 1fr; gap: 6px; }
         .fact-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
-        .fact-key { color: #64748b; }
-        .fact-val { color: #0f172a; font-weight: 600; text-align: right; }
-        .empty-hint { text-align: center; padding: 40px 0; color: #94a3b8; }
+        .fact-key { color: var(--muted); }
+        .fact-val { color: var(--text); font-weight: 600; text-align: right; }
+        .empty-hint { text-align: center; padding: 40px 0; color: var(--muted); }
 
         /* 上传区域 */
         .upload-section {
-            background: #fff; border-radius: 12px; padding: 30px; margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            background: var(--panel); border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
         }
         .upload-zone {
-            border: 2px dashed #cbd5e1; border-radius: 8px; padding: 40px;
+            border: 2px dashed rgba(148, 163, 184, 0.55); border-radius: var(--radius-xs); padding: 40px;
             text-align: center; cursor: pointer; transition: border-color 0.3s;
+            background: linear-gradient(180deg, rgba(37,99,235,0.04), transparent 55%);
         }
-        .upload-zone:hover, .upload-zone.dragover { border-color: #3b82f6; background: #eff6ff; }
-        .upload-zone p { color: #64748b; font-size: 16px; }
-        .upload-zone .hint { font-size: 13px; margin-top: 8px; color: #94a3b8; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: var(--brand2); background: rgba(37, 99, 235, 0.06); }
+        .upload-zone p { color: var(--muted); font-size: 16px; }
+        .upload-zone .hint { font-size: 13px; margin-top: 8px; color: var(--muted); opacity: 0.88; }
         .upload-progress { display: none; margin-top: 16px; }
-        .upload-progress .bar { height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; }
-        .upload-progress .bar-fill { height: 100%; background: #3b82f6; width: 0; transition: width 0.3s; }
-        .upload-progress .status { margin-top: 8px; font-size: 14px; color: #64748b; }
+        .upload-progress .bar { height: 6px; background: rgba(148, 163, 184, 0.20); border-radius: 999px; overflow: hidden; }
+        .upload-progress .bar-fill { height: 100%; background: var(--brand2); width: 0; transition: width 0.3s; border-radius: 999px; }
+        .upload-progress .status { margin-top: 8px; font-size: 14px; color: var(--muted); }
 
         /* 指标选择 */
         .chart-section {
-            background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            background: var(--panel); border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
         }
         .indicator-selector { margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
         .indicator-btn {
-            padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 20px;
-            background: #fff; cursor: pointer; font-size: 13px; color: #475569; transition: all 0.2s;
+            padding: 7px 14px; border: 1px solid var(--border); border-radius: 999px;
+            background: var(--panel); cursor: pointer; font-size: 13px; color: var(--text); opacity: 0.86; transition: all 0.2s;
         }
-        .indicator-btn:hover { border-color: #3b82f6; color: #3b82f6; }
-        .indicator-btn.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+        .indicator-btn:hover { border-color: var(--brand2); color: var(--brand2); opacity: 1; }
+        .indicator-btn:focus-visible { outline: none; box-shadow: var(--ring); border-color: var(--brand2); }
+        .indicator-btn.active { background: var(--brand2); color: #fff; border-color: var(--brand2); opacity: 1; }
         .indicator-btn .abnormal-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #ef4444; margin-left: 4px; vertical-align: middle; }
         .charts-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-        .chart-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+        .chart-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; background: linear-gradient(180deg, rgba(37,99,235,0.04), transparent 60%); }
         .chart-card-header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-        .chart-card-title { font-size: 14px; font-weight: 700; color: #0f172a; }
-        .chart-card-sub { font-size: 12px; color: #64748b; }
+        .chart-card-title { font-size: 14px; font-weight: 800; color: var(--text); }
+        .chart-card-sub { font-size: 12px; color: var(--muted); }
         .mini-chart { width: 100%; height: 260px; }
-        .no-data-hint { text-align: center; padding: 60px 0; color: #94a3b8; font-size: 15px; }
+        .no-data-hint { text-align: center; padding: 60px 0; color: var(--muted); font-size: 15px; }
 
         /* 报告列表 */
         .reports-section {
-            background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            background: var(--panel); border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
         }
         .report-card {
             border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;
@@ -142,22 +215,23 @@
             transform: translateX(120%); transition: transform 0.3s;
         }
         .toast.show { transform: translateX(0); }
-        .toast.success { background: #10b981; }
-        .toast.error { background: #ef4444; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
 
         /* 表格 */
         .table-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
-        .cols-panel { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
-        .col-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; user-select: none; }
+        .cols-panel { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 12px; background: rgba(148, 163, 184, 0.10); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+        .col-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); opacity: 0.9; user-select: none; }
         .col-chip input { transform: translateY(1px); }
-        .reports-table-wrap { overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .reports-table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); }
         table.reports-table { width: 100%; border-collapse: collapse; min-width: 820px; }
-        table.reports-table th, table.reports-table td { padding: 10px 12px; border-bottom: 1px solid #eef2f7; font-size: 13px; }
-        table.reports-table th { position: sticky; top: 0; background: #ffffff; z-index: 1; color: #334155; text-align: left; }
-        table.reports-table td { color: #0f172a; white-space: nowrap; }
-        .cell-muted { color: #94a3b8; }
-        .cell-abnormal { color: #ef4444; font-weight: 600; }
-        .cell-unit { color: #64748b; margin-left: 4px; }
+        table.reports-table th, table.reports-table td { padding: 10px 12px; border-bottom: 1px solid var(--border2); font-size: 13px; }
+        table.reports-table th { position: sticky; top: 0; background: var(--panel); z-index: 1; color: var(--text); opacity: 0.86; text-align: left; }
+        table.reports-table tbody tr:hover td { background: rgba(37, 99, 235, 0.06); }
+        table.reports-table td { color: var(--text); white-space: nowrap; }
+        .cell-muted { color: var(--muted); }
+        .cell-abnormal { color: var(--danger); font-weight: 700; }
+        .cell-unit { color: var(--muted); margin-left: 4px; }
 
         /* Modal */
         .modal-mask {
@@ -167,13 +241,14 @@
         }
         .modal {
             width: min(520px, calc(100vw - 24px));
-            background: #fff; border-radius: 14px; padding: 18px;
-            box-shadow: 0 16px 50px rgba(0,0,0,0.22);
+            background: var(--panel); border-radius: 14px; padding: 18px;
+            box-shadow: var(--shadow2);
+            border: 1px solid var(--border);
         }
-        .modal-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 10px; }
+        .modal-title { font-size: 16px; font-weight: 900; color: var(--text); margin-bottom: 10px; }
         .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .modal-row { display: flex; flex-direction: column; gap: 6px; }
-        .modal-row label { font-size: 12px; color: #64748b; }
+        .modal-row label { font-size: 12px; color: var(--muted); }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
         @media (max-width: 700px) {
             .charts-grid { grid-template-columns: 1fr; }
@@ -190,6 +265,7 @@
                 <div class="subtitle">上传检查 PDF → 自动结构化 → 表格/趋势图追踪（本地 SQLite 保存）</div>
             </div>
             <div class="topbar-right">
+                <button class="btn icon ghost" id="themeToggle" title="切换主题（亮/暗）" aria-label="切换主题（亮/暗）">🌓</button>
                 <div class="field">
                     <label for="patientSelect">病人</label>
                     <select id="patientSelect"></select>
@@ -228,7 +304,7 @@
                         </optgroup>
                     </select>
                 </div>
-                <div style="font-size:12px;color:#64748b;">提示：先选病人，再选报告类型上传。</div>
+                <div class="help-text">提示：先选病人，再选报告类型上传。</div>
             </div>
             <div class="upload-zone" id="uploadZone">
                 <p>拖拽 PDF 文件到此处，或点击选择文件</p>
@@ -245,25 +321,25 @@
             <!-- 主要检查 -->
             <section id="pane_main" class="active">
                 <div class="chart-section">
-                    <h2 style="font-size:18px; margin-bottom:16px; color:#1e293b;">主要检查时间轴</h2>
+                    <h2 class="section-title">主要检查时间轴</h2>
                     <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
                         <button class="btn" onclick="loadMainTimelines()">刷新</button>
-                        <div style="font-size:12px;color:#64748b;">骨穿/腰穿/流式/分子监测：以结构化结论卡片展示。</div>
+                        <div class="help-text">骨穿/腰穿/流式/分子监测：以结构化结论卡片展示。</div>
                     </div>
 
-                    <h3 style="font-size:15px; color:#0f172a; margin:14px 0 10px;">骨穿/骨髓涂片</h3>
+                    <h3 class="subsection-title">骨穿/骨髓涂片</h3>
                     <div class="timeline-grid" id="timeline_bm"></div>
                     <div class="empty-hint" id="timeline_bm_empty" style="display:none;">暂无骨穿记录</div>
 
-                    <h3 style="font-size:15px; color:#0f172a; margin:18px 0 10px;">腰穿/脑脊液</h3>
+                    <h3 class="subsection-title" style="margin-top:18px;">腰穿/脑脊液</h3>
                     <div class="timeline-grid" id="timeline_lp"></div>
                     <div class="empty-hint" id="timeline_lp_empty" style="display:none;">暂无腰穿记录</div>
 
-                    <h3 style="font-size:15px; color:#0f172a; margin:18px 0 10px;">流式/MRD</h3>
+                    <h3 class="subsection-title" style="margin-top:18px;">流式/MRD</h3>
                     <div class="timeline-grid" id="timeline_flow"></div>
                     <div class="empty-hint" id="timeline_flow_empty" style="display:none;">暂无流式记录</div>
 
-                    <h3 style="font-size:15px; color:#0f172a; margin:18px 0 10px;">分子监测（WT1/iGH等）</h3>
+                    <h3 class="subsection-title" style="margin-top:18px;">分子监测（WT1/iGH等）</h3>
                     <div class="timeline-grid" id="timeline_molecular"></div>
                     <div class="empty-hint" id="timeline_molecular_empty" style="display:none;">暂无分子监测记录</div>
                 </div>
@@ -274,7 +350,7 @@
                 <!-- 折线图 -->
                 <div class="chart-section">
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-                        <h2 style="font-size:18px; margin-bottom:16px; color:#1e293b;">日常检查趋势</h2>
+                        <h2 class="section-title">日常检查趋势</h2>
                         <div class="field" style="box-shadow:none;">
                             <label for="dailyTypeSelect">类型</label>
                             <select id="dailyTypeSelect">
@@ -292,7 +368,7 @@
 
                 <!-- 报告列表 -->
                 <div class="reports-section">
-                    <h2 style="font-size:18px; margin-bottom:16px; color:#1e293b;">报告记录（表格）</h2>
+                    <h2 class="section-title">报告记录（表格）</h2>
                     <div class="table-controls">
                         <div class="cols-panel" id="reportColsPanel"></div>
                     </div>
@@ -306,8 +382,8 @@
             <!-- 其他检查 -->
             <section id="pane_other">
                 <div class="chart-section">
-                    <h2 style="font-size:18px; margin-bottom:16px; color:#1e293b;">影像/其他检查</h2>
-                    <h3 style="font-size:15px; color:#0f172a; margin:14px 0 10px;">胸部CT</h3>
+                    <h2 class="section-title">影像/其他检查</h2>
+                    <h3 class="subsection-title">胸部CT</h3>
                     <div class="timeline-grid" id="timeline_ct"></div>
                     <div class="empty-hint" id="timeline_ct_empty" style="display:none;">暂无胸部CT记录</div>
                 </div>
@@ -361,6 +437,29 @@
 
         const reportTypeSelect = document.getElementById('reportTypeSelect');
         const dailyTypeSelect = document.getElementById('dailyTypeSelect');
+        const themeToggleBtn = document.getElementById('themeToggle');
+
+        function getPreferredTheme() {
+            try {
+                const saved = localStorage.getItem('theme');
+                if (saved === 'light' || saved === 'dark') return saved;
+            } catch (_) {}
+            return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+
+        function applyTheme(theme) {
+            const t = theme === 'dark' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+            try { localStorage.setItem('theme', t); } catch (_) {}
+            if (themeToggleBtn) themeToggleBtn.textContent = t === 'dark' ? '🌙' : '☀️';
+        }
+
+        function toggleTheme() {
+            const cur = document.documentElement.getAttribute('data-theme') || 'light';
+            applyTheme(cur === 'dark' ? 'light' : 'dark');
+            // 主题切换后，重绘图表以适配坐标轴/文字颜色
+            renderChart();
+        }
 
         // 血常规页面仅展示的核心字段（其余仍保存数据库，但不在页面显示）
         const CBC_DISPLAY_WHITELIST = [
@@ -897,6 +996,17 @@
         function renderChart() {
             const noDataHint = document.getElementById('noDataHint');
             const grid = document.getElementById('chartsGrid');
+            const theme = document.documentElement.getAttribute('data-theme') || 'light';
+            const colors = {
+                text: theme === 'dark' ? '#e5e7eb' : '#0f172a',
+                muted: theme === 'dark' ? '#94a3b8' : '#64748b',
+                border: theme === 'dark' ? 'rgba(148,163,184,0.22)' : '#e2e8f0',
+                brand: theme === 'dark' ? '#60a5fa' : '#2563eb',
+                brand2: theme === 'dark' ? '#60a5fa' : '#3b82f6',
+                danger: theme === 'dark' ? '#fb7185' : '#ef4444',
+                okBand: theme === 'dark' ? 'rgba(52, 211, 153, 0.10)' : '#10b9811f',
+                panel: theme === 'dark' ? '#0f172a' : '#ffffff',
+            };
 
             if (selectedIndicators.size === 0 || Object.keys(chartData).length === 0) {
                 grid.style.display = 'none';
@@ -970,6 +1080,7 @@
                 const refHigh = info.ref_high;
 
                 const option = {
+                    textStyle: { color: colors.text },
                     tooltip: {
                         trigger: 'axis',
                         formatter: function(params) {
@@ -978,16 +1089,28 @@
                             const val = p.value;
                             let flag = '';
                             if (val != null) {
-                                if (refLow != null && val < refLow) flag = ' <span style="color:#ef4444">↓偏低</span>';
-                                if (refHigh != null && val > refHigh) flag = ' <span style="color:#ef4444">↑偏高</span>';
+                                if (refLow != null && val < refLow) flag = ` <span style="color:${colors.danger}">↓偏低</span>`;
+                                if (refHigh != null && val > refHigh) flag = ` <span style="color:${colors.danger}">↑偏高</span>`;
                             }
                             const unit = info?.unit || '';
                             return `<b>${p.axisValue}</b><br/>${p.marker} ${name}: ${val ?? '-'} ${unit}${flag}`;
                         }
                     },
                     grid: { top: 24, right: 18, bottom: 26, left: 52 },
-                    xAxis: { type: 'category', data: dateList, boundaryGap: false },
-                    yAxis: { type: 'value' },
+                    xAxis: {
+                        type: 'category',
+                        data: dateList,
+                        boundaryGap: false,
+                        axisLabel: { color: colors.muted },
+                        axisLine: { lineStyle: { color: colors.border } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { color: colors.muted },
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: colors.border, opacity: 0.7 } },
+                    },
                     series: [{
                         name,
                         type: 'line',
@@ -997,18 +1120,19 @@
                         itemStyle: {
                             color: function(params) {
                                 const val = params.value;
-                                if (val == null) return '#3b82f6';
-                                if (refLow != null && val < refLow) return '#ef4444';
-                                if (refHigh != null && val > refHigh) return '#ef4444';
-                                return '#3b82f6';
+                                if (val == null) return colors.brand2;
+                                if (refLow != null && val < refLow) return colors.danger;
+                                if (refHigh != null && val > refHigh) return colors.danger;
+                                return colors.brand2;
                             }
                         },
                         markArea: (refLow != null && refHigh != null) ? {
                             silent: true,
-                            itemStyle: { color: '#10b9811f' },
+                            itemStyle: { color: colors.okBand },
                             data: [[{ yAxis: refLow }, { yAxis: refHigh }]]
                         } : undefined,
                     }],
+                    backgroundColor: colors.panel,
                 };
 
                 chartInstances[name].setOption(option, true);
@@ -1022,6 +1146,8 @@
 
         // 初始化
         (async function init() {
+            applyTheme(getPreferredTheme());
+            if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
             await loadPatients();
             await onPatientChanged(true);
             // 默认在日常检查页
