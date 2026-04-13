@@ -43,17 +43,12 @@ def normalize_item_name(name: str) -> str:
     if "白细胞" in k or k in ("wbc", "whitebloodcell", "whitebloodcells", "白细胞数"):
         return "白细胞"
 
-    # 红细胞
-    # 注意避免把“红细胞体积分布宽度”等误归类为红细胞
-    if ("红细胞" in k and "分布宽度" not in k and "压积" not in k) or k in ("rbc", "redbloodcell", "红细胞数"):
-        return "红细胞"
-
-    # 血红蛋白
-    if "血红蛋白" in k or k in ("hgb", "hb", "hemoglobin"):
-        return "血红蛋白"
-
     # 血细胞比容
-    if k in ("hct", "hematocrit", "红细胞压积", "血细胞比容"):
+    if (
+        k in ("hct", "hematocrit", "红细胞压积", "血细胞比容")
+        or "红细胞比容" in k
+        or "血细胞比容" in k
+    ):
         return "红细胞压积"
 
     # 血小板
@@ -110,6 +105,40 @@ def normalize_item_name(name: str) -> str:
         return "平均红细胞血红蛋白量"
     if k in ("mchc",) or "平均红细胞血红蛋白浓度" in k:
         return "平均红细胞血红蛋白浓度"
+
+    # 血红蛋白（放在 MCH/MCHC 之后，避免把“平均红细胞血红蛋白量/浓度”误归并）
+    if (
+        k in ("hgb", "hb", "hemoglobin")
+        or (
+            "血红蛋白" in k
+            and "平均" not in k
+            and "浓度" not in k
+            and "含量" not in k
+            and "mch" not in k
+            and "mchc" not in k
+        )
+    ):
+        return "血红蛋白"
+
+    # 红细胞（放在 MCV/MCH/MCHC/HCT/RDW 等规则之后，避免误归类）
+    # 只接受 RBC/红细胞数 及“纯红细胞”命名，排除平均值、血红蛋白相关、压积、分布宽度
+    if (
+        k in ("rbc", "redbloodcell", "红细胞数")
+        or (
+            "红细胞" in k
+            and "平均" not in k
+            and "血红蛋白" not in k
+            and "分布宽度" not in k
+            and "压积" not in k
+            and "比容" not in k
+            and "hct" not in k
+            and "hematocrit" not in k
+            and "体积" not in k
+            and "浓度" not in k
+            and "含量" not in k
+        )
+    ):
+        return "红细胞"
 
     # 兜底：仍保留原本的“-”分割规范化效果
     return base.strip()

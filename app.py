@@ -58,41 +58,87 @@ async def add_patient(
 
 @app.post("/api/upload")
 async def upload_pdf(
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    files: Optional[list[UploadFile]] = File(None),
     patient_id: Optional[int] = Form(None),
     report_type: str = Form("cbc"),
 ):
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="请上传 PDF 文件")
-
     if not API_KEY:
         raise HTTPException(status_code=500, detail="未配置 ZHIPUAI_API_KEY")
 
-    pdf_bytes = await file.read()
+    upload_files: list[UploadFile] = []
+    if files:
+        upload_files.extend(files)
+    if file is not None:
+        upload_files.append(file)
+    if not upload_files:
+        raise HTTPException(status_code=400, detail="请上传至少一个 PDF 文件")
 
-    try:
-        result = extract_report_data(pdf_bytes, API_KEY, report_type=report_type)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PDF 解析失败: {str(e)}")
+    processed = []
+    failed = []
+    for f in upload_files:
+        if not f.filename.lower().endswith(".pdf"):
+            failed.append({"filename": f.filename, "error": "文件不是 PDF"})
+            continue
 
-    report_date = result.get("date") or datetime.now().strftime("%Y-%m-%d")
-    items = result.get("items", [])
-    facts = result.get("facts", [])
+        pdf_bytes = await f.read()
+        try:
+            result = extract_report_data(pdf_bytes, API_KEY, report_type=report_type)
+        except Exception as e:
+            failed.append({"filename": f.filename, "error": f"PDF 解析失败: {str(e)}"})
+            continue
 
-    if not items and not facts:
-        raise HTTPException(status_code=400, detail="未能从 PDF 中提取到可用数据")
+        report_date = result.get("date") or datetime.now().strftime("%Y-%m-%d")
+        items = result.get("items", [])
+        facts = result.get("facts", [])
+        if not items and not facts:
+            failed.append({"filename": f.filename, "error": "未能从 PDF 中提取到可用数据"})
+            continue
 
-    report_id = save_report(file.filename, report_date, items, patient_id=patient_id, report_type=report_type)
-    if facts:
-        save_report_facts(report_id, facts)
+        report_id = save_report(f.filename, report_date, items, patient_id=patient_id, report_type=report_type)
+        if facts:
+            save_report_facts(report_id, facts)
+
+        processed.append(
+            {
+                "filename": f.filename,
+                "report_id": report_id,
+                "date": report_date,
+                "item_count": len(items),
+                "fact_count": len(facts),
+                "items": items,
+                "facts": facts,
+            }
+        )
+
+    if not processed:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "批量上传失败：没有可入库的数据",
+                "failed_count": len(failed),
+                "failed": failed,
+            },
+        )
+
+    if len(processed) == 1:
+        one = processed[0]
+        one["batch"] = len(upload_files) > 1
+        one["file_count"] = len(upload_files)
+        one["success_count"] = len(processed)
+        one["failed_count"] = len(failed)
+        one["failed"] = failed
+        return one
 
     return {
-        "report_id": report_id,
-        "date": report_date,
-        "item_count": len(items),
-        "fact_count": len(facts),
-        "items": items,
-        "facts": facts,
+        "batch": True,
+        "file_count": len(upload_files),
+        "success_count": len(processed),
+        "failed_count": len(failed),
+        "total_item_count": sum(x["item_count"] for x in processed),
+        "total_fact_count": sum(x["fact_count"] for x in processed),
+        "results": processed,
+        "failed": failed,
     }
 
 

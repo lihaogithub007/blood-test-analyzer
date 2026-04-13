@@ -155,6 +155,8 @@
         .upload-progress .bar { height: 6px; background: rgba(148, 163, 184, 0.20); border-radius: 999px; overflow: hidden; }
         .upload-progress .bar-fill { height: 100%; background: var(--brand2); width: 0; transition: width 0.3s; border-radius: 999px; }
         .upload-progress .status { margin-top: 8px; font-size: 14px; color: var(--muted); }
+        .upload-fail-list { margin-top: 8px; font-size: 12px; color: var(--danger); line-height: 1.5; }
+        .upload-fail-list .fail-item { margin-top: 2px; }
 
         /* 指标选择 */
         .chart-section {
@@ -194,10 +196,10 @@
         .report-date { font-weight: 600; font-size: 16px; color: #1e293b; }
         .report-filename { font-size: 13px; color: #94a3b8; }
         .report-delete {
-            background: none; border: none; color: #ef4444; cursor: pointer;
+            background: none; border: none; color: var(--brand2); cursor: pointer;
             font-size: 13px; padding: 4px 8px; border-radius: 4px;
         }
-        .report-delete:hover { background: #fef2f2; }
+        .report-delete:hover { background: rgba(37, 99, 235, 0.12); }
         .report-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; }
         .item-tag {
             font-size: 12px; padding: 4px 8px; border-radius: 4px;
@@ -229,8 +231,23 @@
         table.reports-table th { position: sticky; top: 0; background: var(--panel); z-index: 1; color: var(--text); opacity: 0.86; text-align: left; }
         table.reports-table tbody tr:hover td { background: rgba(37, 99, 235, 0.06); }
         table.reports-table td { color: var(--text); white-space: nowrap; }
+        table.reports-table th.col-date,
+        table.reports-table td.col-date {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: var(--panel);
+        }
+        table.reports-table th.col-date { z-index: 3; }
+        table.reports-table th.col-metric,
+        table.reports-table td.col-metric { text-align: right; }
         .cell-muted { color: var(--muted); }
-        .cell-abnormal { color: var(--danger); font-weight: 700; }
+        .cell-abnormal {
+            color: var(--danger);
+            font-weight: 700;
+            background: rgba(239, 68, 68, 0.10);
+            border-radius: 8px;
+        }
         .cell-unit { color: var(--muted); margin-left: 4px; }
 
         /* Modal */
@@ -307,13 +324,14 @@
                 <div class="help-text">提示：先选病人，再选报告类型上传。</div>
             </div>
             <div class="upload-zone" id="uploadZone">
-                <p>拖拽 PDF 文件到此处，或点击选择文件</p>
+                <p>拖拽 PDF 文件到此处，或点击选择文件（支持批量）</p>
                 <p class="hint">支持：骨穿/腰穿/流式/MRD/WT1/iGH/NGS、肝肾电解质、胸部CT（将持续增强模板适配）</p>
-                <input type="file" id="fileInput" accept=".pdf" style="display:none">
+                <input type="file" id="fileInput" accept=".pdf" multiple style="display:none">
             </div>
             <div class="upload-progress" id="uploadProgress">
                 <div class="bar"><div class="bar-fill" id="progressBar"></div></div>
                 <div class="status" id="progressStatus">正在解析 PDF...</div>
+                <div class="upload-fail-list" id="uploadFailList"></div>
             </div>
         </div>
 
@@ -531,13 +549,15 @@
         uploadZone.addEventListener('drop', e => {
             e.preventDefault();
             uploadZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+            if (e.dataTransfer.files.length) handleFiles(Array.from(e.dataTransfer.files));
         });
-        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(Array.from(e.target.files)); });
 
-        async function handleFile(file) {
-            if (!file.name.toLowerCase().endsWith('.pdf')) {
-                showToast('请上传 PDF 文件', 'error');
+        async function handleFiles(files) {
+            if (!files || files.length === 0) return;
+            const bad = files.find(f => !f.name.toLowerCase().endsWith('.pdf'));
+            if (bad) {
+                showToast(`仅支持 PDF，已检测到: ${bad.name}`, 'error');
                 return;
             }
             if (!currentPatientId) {
@@ -548,28 +568,62 @@
             const progress = document.getElementById('uploadProgress');
             const bar = document.getElementById('progressBar');
             const status = document.getElementById('progressStatus');
+            const failList = document.getElementById('uploadFailList');
 
             progress.style.display = 'block';
-            bar.style.width = '30%';
-            status.textContent = '正在上传 PDF...';
+            bar.style.width = '20%';
+            status.textContent = `正在上传 ${files.length} 个 PDF...`;
+            failList.innerHTML = '';
 
             const formData = new FormData();
-            formData.append('file', file);
+            files.forEach(f => formData.append('files', f));
             formData.append('patient_id', String(currentPatientId));
             formData.append('report_type', reportTypeSelect.value || 'cbc');
 
             try {
                 bar.style.width = '60%';
-                status.textContent = '正在用 AI 解析报告...';
+                status.textContent = `正在解析 ${files.length} 个报告...`;
 
                 const resp = await fetch('/api/upload', { method: 'POST', body: formData });
                 const data = await resp.json();
 
-                if (!resp.ok) throw new Error(data.detail || '上传失败');
+                if (!resp.ok) {
+                    let msg = '上传失败';
+                    if (typeof data.detail === 'string') msg = data.detail;
+                    else if (data.detail && typeof data.detail === 'object') {
+                        const m = data.detail.message || '上传失败';
+                        const fc = data.detail.failed_count || 0;
+                        msg = `${m}（失败 ${fc} 份）`;
+                        if (Array.isArray(data.detail.failed) && data.detail.failed.length) {
+                            failList.innerHTML = data.detail.failed
+                                .slice(0, 8)
+                                .map(x => `<div class="fail-item">- ${x.filename}: ${x.error || '解析失败'}</div>`)
+                                .join('');
+                        }
+                    }
+                    throw new Error(msg);
+                }
 
                 bar.style.width = '100%';
-                status.textContent = `解析完成！识别到 ${data.item_count} 项指标`;
-                showToast(`成功解析 ${data.item_count} 项指标`);
+                if (data.batch) {
+                    status.textContent = `解析完成！成功 ${data.success_count || 0} / ${data.file_count || 0}，失败 ${data.failed_count || 0}，共 ${data.total_item_count || 0} 项指标`;
+                    if ((data.failed_count || 0) > 0) {
+                        if (Array.isArray(data.failed) && data.failed.length) {
+                            failList.innerHTML = data.failed
+                                .slice(0, 8)
+                                .map(x => `<div class="fail-item">- ${x.filename}: ${x.error || '解析失败'}</div>`)
+                                .join('');
+                        }
+                        showToast(`批量完成：成功 ${data.success_count || 0}，失败 ${data.failed_count || 0}`, 'error');
+                    } else {
+                        failList.innerHTML = '';
+                        showToast(`已完成 ${data.file_count} 份 PDF 解析`);
+                    }
+                } else {
+                    status.textContent = `解析完成！识别到 ${data.item_count} 项指标`;
+                    failList.innerHTML = '';
+                    showToast(`成功解析 ${data.item_count} 项指标`);
+                }
 
                 // 刷新数据（按当前 tab）
                 if (currentTab === 'daily') {
@@ -770,8 +824,8 @@
                 const thead = `
                     <thead>
                         <tr>
-                            <th style="min-width:120px;">日期</th>
-                            ${cols.map(c => `<th>${c}</th>`).join('')}
+                            <th class="col-date" style="min-width:120px;">日期</th>
+                            ${cols.map(c => `<th class="col-metric">${c}</th>`).join('')}
                             <th style="min-width:80px;">操作</th>
                         </tr>
                     </thead>
@@ -789,18 +843,24 @@
 
                     const tds = cols.map(c => {
                         const it = map[c];
-                        if (!it || it.value == null) return `<td class="cell-muted">-</td>`;
-                        const abnormal = it.ref_low != null && it.ref_high != null && (it.value < it.ref_low || it.value > it.ref_high);
-                        const arrow = it.ref_low != null && it.value < it.ref_low ? '↓' :
-                                      it.ref_high != null && it.value > it.ref_high ? '↑' : '';
+                        if (!it || it.value == null) return `<td class="cell-muted col-metric">-</td>`;
+                        const valueNum = Number(it.value);
+                        const low = it.ref_low != null ? Number(it.ref_low) : null;
+                        const high = it.ref_high != null ? Number(it.ref_high) : null;
+                        const hasLow = low != null && Number.isFinite(low);
+                        const hasHigh = high != null && Number.isFinite(high);
+                        const isLow = hasLow && Number.isFinite(valueNum) && valueNum < low;
+                        const isHigh = hasHigh && Number.isFinite(valueNum) && valueNum > high;
+                        const abnormal = isLow || isHigh;
+                        const arrow = isLow ? '↓' : (isHigh ? '↑' : '');
                         const cls = abnormal ? 'cell-abnormal' : '';
                         const unit = it.unit ? `<span class="cell-unit">${it.unit}</span>` : '';
-                        return `<td class="${cls}">${it.value}${arrow}${unit}</td>`;
+                        return `<td class="col-metric ${cls}">${it.value}${arrow}${unit}</td>`;
                     }).join('');
 
                     return `
                         <tr>
-                            <td>${r.report_date || '-'}</td>
+                            <td class="col-date">${r.report_date || '-'}</td>
                             ${tds}
                             <td><button class="report-delete" onclick="deleteReport(${r.id})">删除</button></td>
                         </tr>
@@ -1078,6 +1138,44 @@
                 const values = dateList.map(date => dataMap[date] ?? null);
                 const refLow = info.ref_low;
                 const refHigh = info.ref_high;
+                const numericValues = values.filter(v => v != null && Number.isFinite(Number(v))).map(Number);
+                const isRbc = name === '红细胞';
+                const isHemoglobin = name === '血红蛋白';
+
+                // 让坐标轴覆盖参考区间，避免“数据点都偏低/偏高时，绿色参考带被裁掉看不见”
+                let yMin = null;
+                let yMax = null;
+                if (numericValues.length > 0) {
+                    yMin = Math.min(...numericValues);
+                    yMax = Math.max(...numericValues);
+                }
+                // 血红蛋白优先看趋势细节：不强制把参考上限并入轴范围，避免纵轴被 150 拉得过高
+                if (!isHemoglobin && refLow != null && Number.isFinite(Number(refLow))) {
+                    yMin = (yMin == null) ? Number(refLow) : Math.min(yMin, Number(refLow));
+                    yMax = (yMax == null) ? Number(refLow) : Math.max(yMax, Number(refLow));
+                }
+                if (!isHemoglobin && refHigh != null && Number.isFinite(Number(refHigh))) {
+                    yMin = (yMin == null) ? Number(refHigh) : Math.min(yMin, Number(refHigh));
+                    yMax = (yMax == null) ? Number(refHigh) : Math.max(yMax, Number(refHigh));
+                }
+                if (yMin != null && yMax != null) {
+                    const span = Math.max(1e-6, yMax - yMin);
+                    const pad = span * 0.12;
+                    yMin = yMin - pad;
+                    yMax = yMax + pad;
+                }
+
+                // 血红蛋白专用：按 5 为粒度收敛到数据附近，提升可读性
+                if (isHemoglobin && yMin != null && yMax != null) {
+                    yMin = Math.floor(yMin / 5) * 5;
+                    yMax = Math.ceil(yMax / 5) * 5;
+                    // 防止极端情况下范围过窄导致观感抖动
+                    if (yMax - yMin < 20) {
+                        const mid = (yMax + yMin) / 2;
+                        yMin = Math.floor((mid - 10) / 5) * 5;
+                        yMax = Math.ceil((mid + 10) / 5) * 5;
+                    }
+                }
 
                 const option = {
                     textStyle: { color: colors.text },
@@ -1107,7 +1205,20 @@
                     },
                     yAxis: {
                         type: 'value',
-                        axisLabel: { color: colors.muted },
+                        min: (isRbc && yMin != null) ? (Math.floor(yMin * 10) / 10) : (yMin == null ? null : yMin),
+                        max: (isRbc && yMax != null) ? (Math.ceil(yMax * 10) / 10) : (yMax == null ? null : yMax),
+                        // 红细胞不强制 0.1 刻度，交给 ECharts 自动分段，避免刻度标签过密重叠
+                        splitNumber: isRbc ? 6 : (isHemoglobin ? 5 : 5),
+                        interval: isHemoglobin ? 5 : null,
+                        axisLabel: {
+                            color: colors.muted,
+                            hideOverlap: true,
+                            formatter: function(v) {
+                                if (isRbc) return Number(v).toFixed(1);
+                                if (isHemoglobin) return String(Math.round(v));
+                                return v;
+                            }
+                        },
                         axisLine: { show: false },
                         splitLine: { lineStyle: { color: colors.border, opacity: 0.7 } },
                     },
