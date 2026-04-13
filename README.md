@@ -396,6 +396,45 @@ pip install -r requirements.txt
 
 修改 `static/index.html` 中的 ECharts 配置项，调整图表颜色、样式等。
 
+## 自动提交到 GitHub（定时）
+
+如果你希望本项目在本机上**定时自动提交并推送到 GitHub**，可以使用仓库内置脚本 `scripts/auto_commit_push.ps1`（会自动跳过 `.env`，避免提交 API Key）。
+
+### 手动执行一次
+
+在项目目录运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\auto_commit_push.ps1
+```
+
+### 设置 Windows 任务计划（确保 5/30 前至少提交一次）
+
+示例：每天 17:30 自动提交一次（你也可以改成任意时间），并使用当前仓库的 `main` 分支：
+
+```powershell
+$repo = "D:\claude_code\blood-test-analyzer"
+$task = "blood-test-analyzer-auto-push"
+$cmd  = "powershell -ExecutionPolicy Bypass -File `"$repo\scripts\auto_commit_push.ps1`" -RepoDir `"$repo`" -Branch main"
+schtasks /Create /F /SC DAILY /ST 17:30 /TN $task /TR $cmd
+```
+
+你也可以单独再创建一个**一次性任务**（例如 2026-05-29 17:40），确保 5/30 前一定会跑到：
+
+```powershell
+$repo = "D:\claude_code\blood-test-analyzer"
+$task = "blood-test-analyzer-auto-push-once"
+$cmd  = "powershell -ExecutionPolicy Bypass -File `"$repo\scripts\auto_commit_push.ps1`" -RepoDir `"$repo`" -Branch main"
+schtasks /Create /F /SC ONCE /SD 2026/05/29 /ST 17:40 /TN $task /TR $cmd
+```
+
+查看/删除任务：
+
+```powershell
+schtasks /Query /TN blood-test-analyzer-auto-push
+schtasks /Delete /F /TN blood-test-analyzer-auto-push
+```
+
 ## 更新记录（本次改动汇总）
 
 - **安全**：
