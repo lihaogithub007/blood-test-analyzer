@@ -353,7 +353,9 @@ function renderReports() {
       const tds = cols.map(c => {
         const it = map[c];
         if (!it || it.value == null) return `<td class="cell-muted">-</td>`;
-        const abnormal = it.ref_low != null && it.ref_high != null && (it.value < it.ref_low || it.value > it.ref_high);
+        const abnormal =
+          (it.ref_low != null && it.value < it.ref_low) ||
+          (it.ref_high != null && it.value > it.ref_high);
         const arrow = it.ref_low != null && it.value < it.ref_low ? '↓' :
           it.ref_high != null && it.value > it.ref_high ? '↑' : '';
         const cls = abnormal ? 'cell-abnormal' : '';
