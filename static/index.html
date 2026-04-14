@@ -6,19 +6,23 @@
     <title>血常规 PDF 分析器</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root{
             color-scheme: light;
-            --bg: #f6f7fb;
+            --bg: #F8FAFC;
             --panel: #ffffff;
             --panel2: #f8fafc;
             --text: #0f172a;
             --muted: #64748b;
             --border: #e2e8f0;
             --border2: #eef2f7;
-            --brand: #2563eb;
-            --brand2: #3b82f6;
+            --brand: #1E40AF;
+            --brand2: #3B82F6;
+            --cta: #F59E0B;
+            --accent: #06B6D4;   /* cyan */
+            --accent2: #A855F7;  /* purple */
             --danger: #ef4444;
             --success: #10b981;
             --shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
@@ -26,7 +30,7 @@
             --radius: 12px;
             --radius-sm: 10px;
             --radius-xs: 8px;
-            --ring: 0 0 0 4px rgba(37, 99, 235, 0.18);
+            --ring: 0 0 0 4px rgba(30, 64, 175, 0.18);
             --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         }
         html[data-theme="dark"]{
@@ -40,6 +44,9 @@
             --border2: rgba(148, 163, 184, 0.16);
             --brand: #60a5fa;
             --brand2: #60a5fa;
+            --cta: #fbbf24;
+            --accent: #22d3ee;
+            --accent2: #c084fc;
             --danger: #fb7185;
             --success: #34d399;
             --shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
@@ -48,7 +55,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+            font-family: "Fira Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
             background: var(--bg);
             color: var(--text);
             -webkit-font-smoothing: antialiased;
@@ -73,6 +80,22 @@
             color: var(--text);
         }
 
+        .skip-link {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            padding: 10px 12px;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            transform: translateY(-140%);
+            transition: transform .15s ease;
+            z-index: 9999;
+        }
+        .skip-link:focus { transform: translateY(0); box-shadow: var(--ring); outline: none; }
+
         .topbar {
             display: flex; gap: 12px; align-items: center; justify-content: space-between;
             margin: 10px 0 18px;
@@ -95,18 +118,23 @@
         select:disabled, input[type="text"]:disabled, input[type="date"]:disabled { opacity: 0.7; cursor: not-allowed; }
         .btn {
             border: 1px solid var(--border); background: var(--panel); color: var(--text);
-            padding: 8px 12px; border-radius: 10px; cursor: pointer;
-            font-size: 13px; transition: all .15s;
+            padding: 10px 12px; border-radius: 10px; cursor: pointer;
+            font-size: 13px;
+            transition: background-color .15s, color .15s, border-color .15s, box-shadow .15s;
             box-shadow: var(--shadow);
             line-height: 1;
+            min-height: 40px;
         }
-        .btn:hover { border-color: var(--brand2); color: var(--brand2); transform: translateY(-1px); }
-        .btn:active { transform: translateY(0); }
+        .btn:hover { border-color: var(--brand2); color: var(--brand2); box-shadow: 0 2px 12px rgba(15, 23, 42, 0.10); }
         .btn:focus-visible { outline: none; box-shadow: var(--ring); border-color: var(--brand2); }
         .btn.primary { background: var(--brand2); color: #fff; border-color: var(--brand2); }
         .btn.primary:hover { filter: brightness(0.98); }
+        .btn.cta { background: var(--cta); color: #111827; border-color: rgba(245, 158, 11, 0.35); box-shadow: 0 8px 22px rgba(245, 158, 11, 0.18); }
+        .btn.cta:hover { border-color: rgba(245, 158, 11, 0.55); color: #111827; box-shadow: 0 10px 24px rgba(245, 158, 11, 0.22); }
+        html[data-theme="dark"] .btn.cta { color: #0b1220; }
         .btn.ghost { background: transparent; box-shadow: none; }
-        .btn.icon { padding: 8px 10px; border-radius: 999px; }
+        .btn.icon { padding: 10px; border-radius: 999px; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+        .btn.icon svg { width: 18px; height: 18px; display: block; }
 
         /* Tabs */
         .tabs {
@@ -119,7 +147,11 @@
             box-shadow: var(--shadow);
         }
         html[data-theme="dark"] .tab { color: var(--text); opacity: 0.9; }
-        .tab.active { background: var(--brand2); border-color: var(--brand2); color: #fff; }
+        .tab.active {
+            background: linear-gradient(135deg, var(--brand2), var(--accent2));
+            border-color: transparent;
+            color: #fff;
+        }
         .tabpanes > section { display: none; }
         .tabpanes > section.active { display: block; }
 
@@ -146,17 +178,25 @@
         .upload-zone {
             border: 2px dashed rgba(148, 163, 184, 0.55); border-radius: var(--radius-xs); padding: 40px;
             text-align: center; cursor: pointer; transition: border-color 0.3s;
-            background: linear-gradient(180deg, rgba(37,99,235,0.04), transparent 55%);
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(6, 182, 212, 0.05) 45%, transparent 80%);
         }
-        .upload-zone:hover, .upload-zone.dragover { border-color: var(--brand2); background: rgba(37, 99, 235, 0.06); }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--cta);
+            background: linear-gradient(180deg, rgba(245, 158, 11, 0.10), rgba(59, 130, 246, 0.06) 55%, transparent 85%);
+        }
         .upload-zone p { color: var(--muted); font-size: 16px; }
         .upload-zone .hint { font-size: 13px; margin-top: 8px; color: var(--muted); opacity: 0.88; }
+        .upload-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
         .upload-progress { display: none; margin-top: 16px; }
         .upload-progress .bar { height: 6px; background: rgba(148, 163, 184, 0.20); border-radius: 999px; overflow: hidden; }
-        .upload-progress .bar-fill { height: 100%; background: var(--brand2); width: 0; transition: width 0.3s; border-radius: 999px; }
+        .upload-progress .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--brand2), var(--accent), var(--cta));
+            width: 0;
+            transition: width 0.3s;
+            border-radius: 999px;
+        }
         .upload-progress .status { margin-top: 8px; font-size: 14px; color: var(--muted); }
-        .upload-fail-list { margin-top: 8px; font-size: 12px; color: var(--danger); line-height: 1.5; }
-        .upload-fail-list .fail-item { margin-top: 2px; }
 
         /* 指标选择 */
         .chart-section {
@@ -174,9 +214,14 @@
         .indicator-btn.active { background: var(--brand2); color: #fff; border-color: var(--brand2); opacity: 1; }
         .indicator-btn .abnormal-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #ef4444; margin-left: 4px; vertical-align: middle; }
         .charts-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-        .chart-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; background: linear-gradient(180deg, rgba(37,99,235,0.04), transparent 60%); }
+        .chart-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+            background: linear-gradient(180deg, rgba(59,130,246,0.08), rgba(168,85,247,0.06) 40%, transparent 80%);
+        }
         .chart-card-header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-        .chart-card-title { font-size: 14px; font-weight: 800; color: var(--text); }
+        .chart-card-title { font-size: 14px; font-weight: 900; color: var(--text); }
         .chart-card-sub { font-size: 12px; color: var(--muted); }
         .mini-chart { width: 100%; height: 260px; }
         .no-data-hint { text-align: center; padding: 60px 0; color: var(--muted); font-size: 15px; }
@@ -196,10 +241,10 @@
         .report-date { font-weight: 600; font-size: 16px; color: #1e293b; }
         .report-filename { font-size: 13px; color: #94a3b8; }
         .report-delete {
-            background: none; border: none; color: var(--brand2); cursor: pointer;
+            background: none; border: none; color: #ef4444; cursor: pointer;
             font-size: 13px; padding: 4px 8px; border-radius: 4px;
         }
-        .report-delete:hover { background: rgba(37, 99, 235, 0.12); }
+        .report-delete:hover { background: #fef2f2; }
         .report-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; }
         .item-tag {
             font-size: 12px; padding: 4px 8px; border-radius: 4px;
@@ -229,26 +274,13 @@
         table.reports-table { width: 100%; border-collapse: collapse; min-width: 820px; }
         table.reports-table th, table.reports-table td { padding: 10px 12px; border-bottom: 1px solid var(--border2); font-size: 13px; }
         table.reports-table th { position: sticky; top: 0; background: var(--panel); z-index: 1; color: var(--text); opacity: 0.86; text-align: left; }
-        table.reports-table tbody tr:hover td { background: rgba(37, 99, 235, 0.06); }
+        table.reports-table tbody tr:nth-child(2n) td { background: rgba(148, 163, 184, 0.06); }
+        table.reports-table tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
         table.reports-table td { color: var(--text); white-space: nowrap; }
-        table.reports-table th.col-date,
-        table.reports-table td.col-date {
-            position: sticky;
-            left: 0;
-            z-index: 2;
-            background: var(--panel);
-        }
-        table.reports-table th.col-date { z-index: 3; }
-        table.reports-table th.col-metric,
-        table.reports-table td.col-metric { text-align: right; }
         .cell-muted { color: var(--muted); }
-        .cell-abnormal {
-            color: var(--danger);
-            font-weight: 700;
-            background: rgba(239, 68, 68, 0.10);
-            border-radius: 8px;
-        }
+        .cell-abnormal { color: var(--danger); font-weight: 700; }
         .cell-unit { color: var(--muted); margin-left: 4px; }
+        .cell-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
         /* Modal */
         .modal-mask {
@@ -272,17 +304,22 @@
             .modal-grid { grid-template-columns: 1fr; }
             .timeline-grid { grid-template-columns: 1fr; }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition: none !important; animation: none !important; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <div class="container" id="main">
         <div class="topbar">
             <div class="topbar-left">
                 <h1>检验随访工作台</h1>
                 <div class="subtitle">上传检查 PDF → 自动结构化 → 表格/趋势图追踪（本地 SQLite 保存）</div>
             </div>
             <div class="topbar-right">
-                <button class="btn icon ghost" id="themeToggle" title="切换主题（亮/暗）" aria-label="切换主题（亮/暗）">🌓</button>
+                <button class="btn icon ghost" id="themeToggle" title="切换主题（亮/暗）" aria-label="切换主题（亮/暗）"></button>
                 <div class="field">
                     <label for="patientSelect">病人</label>
                     <select id="patientSelect"></select>
@@ -324,14 +361,17 @@
                 <div class="help-text">提示：先选病人，再选报告类型上传。</div>
             </div>
             <div class="upload-zone" id="uploadZone">
-                <p>拖拽 PDF 文件到此处，或点击选择文件（支持批量）</p>
+                <p>拖拽 PDF 文件到此处，或点击选择文件</p>
                 <p class="hint">支持：骨穿/腰穿/流式/MRD/WT1/iGH/NGS、肝肾电解质、胸部CT（将持续增强模板适配）</p>
-                <input type="file" id="fileInput" accept=".pdf" multiple style="display:none">
+                <input type="file" id="fileInput" accept=".pdf" style="display:none">
+            </div>
+            <div class="upload-actions">
+                <button class="btn cta" id="chooseFileBtn" type="button">选择 PDF（核心操作）</button>
+                <div class="help-text">也可直接拖拽文件到上方区域。</div>
             </div>
             <div class="upload-progress" id="uploadProgress">
                 <div class="bar"><div class="bar-fill" id="progressBar"></div></div>
                 <div class="status" id="progressStatus">正在解析 PDF...</div>
-                <div class="upload-fail-list" id="uploadFailList"></div>
             </div>
         </div>
 
@@ -457,6 +497,20 @@
         const dailyTypeSelect = document.getElementById('dailyTypeSelect');
         const themeToggleBtn = document.getElementById('themeToggle');
 
+        const THEME_ICONS = {
+            light: `
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" stroke="currentColor" stroke-width="2" />
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            `,
+            dark: `
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M21 13.2A8 8 0 1 1 10.8 3a6.5 6.5 0 0 0 10.2 10.2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                </svg>
+            `,
+        };
+
         function getPreferredTheme() {
             try {
                 const saved = localStorage.getItem('theme');
@@ -469,7 +523,7 @@
             const t = theme === 'dark' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', t);
             try { localStorage.setItem('theme', t); } catch (_) {}
-            if (themeToggleBtn) themeToggleBtn.textContent = t === 'dark' ? '🌙' : '☀️';
+            if (themeToggleBtn) themeToggleBtn.innerHTML = THEME_ICONS[t];
         }
 
         function toggleTheme() {
@@ -542,22 +596,22 @@
         // 上传相关
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
+        const chooseFileBtn = document.getElementById('chooseFileBtn');
 
         uploadZone.addEventListener('click', () => fileInput.click());
+        if (chooseFileBtn) chooseFileBtn.addEventListener('click', () => fileInput.click());
         uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
         uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
         uploadZone.addEventListener('drop', e => {
             e.preventDefault();
             uploadZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) handleFiles(Array.from(e.dataTransfer.files));
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
         });
-        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(Array.from(e.target.files)); });
+        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
 
-        async function handleFiles(files) {
-            if (!files || files.length === 0) return;
-            const bad = files.find(f => !f.name.toLowerCase().endsWith('.pdf'));
-            if (bad) {
-                showToast(`仅支持 PDF，已检测到: ${bad.name}`, 'error');
+        async function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showToast('请上传 PDF 文件', 'error');
                 return;
             }
             if (!currentPatientId) {
@@ -568,62 +622,28 @@
             const progress = document.getElementById('uploadProgress');
             const bar = document.getElementById('progressBar');
             const status = document.getElementById('progressStatus');
-            const failList = document.getElementById('uploadFailList');
 
             progress.style.display = 'block';
-            bar.style.width = '20%';
-            status.textContent = `正在上传 ${files.length} 个 PDF...`;
-            failList.innerHTML = '';
+            bar.style.width = '30%';
+            status.textContent = '正在上传 PDF...';
 
             const formData = new FormData();
-            files.forEach(f => formData.append('files', f));
+            formData.append('file', file);
             formData.append('patient_id', String(currentPatientId));
             formData.append('report_type', reportTypeSelect.value || 'cbc');
 
             try {
                 bar.style.width = '60%';
-                status.textContent = `正在解析 ${files.length} 个报告...`;
+                status.textContent = '正在用 AI 解析报告...';
 
                 const resp = await fetch('/api/upload', { method: 'POST', body: formData });
                 const data = await resp.json();
 
-                if (!resp.ok) {
-                    let msg = '上传失败';
-                    if (typeof data.detail === 'string') msg = data.detail;
-                    else if (data.detail && typeof data.detail === 'object') {
-                        const m = data.detail.message || '上传失败';
-                        const fc = data.detail.failed_count || 0;
-                        msg = `${m}（失败 ${fc} 份）`;
-                        if (Array.isArray(data.detail.failed) && data.detail.failed.length) {
-                            failList.innerHTML = data.detail.failed
-                                .slice(0, 8)
-                                .map(x => `<div class="fail-item">- ${x.filename}: ${x.error || '解析失败'}</div>`)
-                                .join('');
-                        }
-                    }
-                    throw new Error(msg);
-                }
+                if (!resp.ok) throw new Error(data.detail || '上传失败');
 
                 bar.style.width = '100%';
-                if (data.batch) {
-                    status.textContent = `解析完成！成功 ${data.success_count || 0} / ${data.file_count || 0}，失败 ${data.failed_count || 0}，共 ${data.total_item_count || 0} 项指标`;
-                    if ((data.failed_count || 0) > 0) {
-                        if (Array.isArray(data.failed) && data.failed.length) {
-                            failList.innerHTML = data.failed
-                                .slice(0, 8)
-                                .map(x => `<div class="fail-item">- ${x.filename}: ${x.error || '解析失败'}</div>`)
-                                .join('');
-                        }
-                        showToast(`批量完成：成功 ${data.success_count || 0}，失败 ${data.failed_count || 0}`, 'error');
-                    } else {
-                        failList.innerHTML = '';
-                        showToast(`已完成 ${data.file_count} 份 PDF 解析`);
-                    }
-                } else {
-                    status.textContent = `解析完成！识别到 ${data.item_count} 项指标`;
-                    failList.innerHTML = '';
-                    showToast(`成功解析 ${data.item_count} 项指标`);
-                }
+                status.textContent = `解析完成！识别到 ${data.item_count} 项指标`;
+                showToast(`成功解析 ${data.item_count} 项指标`);
 
                 // 刷新数据（按当前 tab）
                 if (currentTab === 'daily') {
@@ -824,8 +844,8 @@
                 const thead = `
                     <thead>
                         <tr>
-                            <th class="col-date" style="min-width:120px;">日期</th>
-                            ${cols.map(c => `<th class="col-metric">${c}</th>`).join('')}
+                            <th style="min-width:120px;">日期</th>
+                            ${cols.map(c => `<th>${c}</th>`).join('')}
                             <th style="min-width:80px;">操作</th>
                         </tr>
                     </thead>
@@ -843,24 +863,18 @@
 
                     const tds = cols.map(c => {
                         const it = map[c];
-                        if (!it || it.value == null) return `<td class="cell-muted col-metric">-</td>`;
-                        const valueNum = Number(it.value);
-                        const low = it.ref_low != null ? Number(it.ref_low) : null;
-                        const high = it.ref_high != null ? Number(it.ref_high) : null;
-                        const hasLow = low != null && Number.isFinite(low);
-                        const hasHigh = high != null && Number.isFinite(high);
-                        const isLow = hasLow && Number.isFinite(valueNum) && valueNum < low;
-                        const isHigh = hasHigh && Number.isFinite(valueNum) && valueNum > high;
-                        const abnormal = isLow || isHigh;
-                        const arrow = isLow ? '↓' : (isHigh ? '↑' : '');
+                        if (!it || it.value == null) return `<td class="cell-muted">-</td>`;
+                        const abnormal = it.ref_low != null && it.ref_high != null && (it.value < it.ref_low || it.value > it.ref_high);
+                        const arrow = it.ref_low != null && it.value < it.ref_low ? '↓' :
+                                      it.ref_high != null && it.value > it.ref_high ? '↑' : '';
                         const cls = abnormal ? 'cell-abnormal' : '';
                         const unit = it.unit ? `<span class="cell-unit">${it.unit}</span>` : '';
-                        return `<td class="col-metric ${cls}">${it.value}${arrow}${unit}</td>`;
+                        return `<td class="cell-num ${cls}">${it.value}${arrow}${unit}</td>`;
                     }).join('');
 
                     return `
                         <tr>
-                            <td class="col-date">${r.report_date || '-'}</td>
+                            <td>${r.report_date || '-'}</td>
                             ${tds}
                             <td><button class="report-delete" onclick="deleteReport(${r.id})">删除</button></td>
                         </tr>
@@ -905,6 +919,12 @@
             switchTab(tab);
         });
 
+        function resizeAllCharts() {
+            try {
+                Object.values(chartInstances).forEach(ins => ins && ins.resize && ins.resize());
+            } catch (_) {}
+        }
+
         function switchTab(tab) {
             currentTab = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
@@ -913,7 +933,14 @@
             document.getElementById('pane_other').classList.toggle('active', tab === 'other');
 
             if (!currentPatientId) return;
-            if (tab === 'daily') Promise.all([loadReports(), loadChartData()]);
+            if (tab === 'daily') {
+                Promise.all([loadReports(), loadChartData()]).then(() => {
+                    // 从 display:none 切回可见后，ECharts 需要主动 resize 一次
+                    requestAnimationFrame(() => resizeAllCharts());
+                    setTimeout(resizeAllCharts, 80);
+                    setTimeout(resizeAllCharts, 180);
+                });
+            }
             if (tab === 'main') loadMainTimelines();
             if (tab === 'other') loadOtherTimelines();
         }
@@ -1097,15 +1124,11 @@
                 selected = selected.filter(isCbcAllowedIndicator);
             }
 
-            // 移除不再选中的实例和 DOM
-            for (const name of Object.keys(chartInstances)) {
-                if (!selectedIndicators.has(name)) {
-                    chartInstances[name].dispose();
-                    delete chartInstances[name];
-                    const el = document.getElementById(`chart_${encodeURIComponent(name)}`);
-                    if (el && el.parentElement) el.parentElement.remove();
-                }
-            }
+            // 关键修复：renderChart 会重建 grid.innerHTML（销毁旧 DOM）。
+            // ECharts 实例与 DOM 绑定，复用旧实例会导致“图表消失/不再渲染”。
+            // 因此在重建前统一 dispose，随后按最新 DOM 重新 init。
+            Object.values(chartInstances).forEach(ins => ins && ins.dispose && ins.dispose());
+            chartInstances = {};
 
             // 保持 grid 内部按照 selected 顺序排列
             grid.innerHTML = selected.map(name => {
@@ -1129,53 +1152,13 @@
                 const dom = document.getElementById(`chart_${encodeURIComponent(name)}`);
                 if (!dom) continue;
 
-                if (!chartInstances[name]) {
-                    chartInstances[name] = echarts.init(dom);
-                }
+                chartInstances[name] = echarts.init(dom);
 
                 const dataMap = {};
                 info.data.forEach(d => { dataMap[d.date] = d.value; });
                 const values = dateList.map(date => dataMap[date] ?? null);
                 const refLow = info.ref_low;
                 const refHigh = info.ref_high;
-                const numericValues = values.filter(v => v != null && Number.isFinite(Number(v))).map(Number);
-                const isRbc = name === '红细胞';
-                const isHemoglobin = name === '血红蛋白';
-
-                // 让坐标轴覆盖参考区间，避免“数据点都偏低/偏高时，绿色参考带被裁掉看不见”
-                let yMin = null;
-                let yMax = null;
-                if (numericValues.length > 0) {
-                    yMin = Math.min(...numericValues);
-                    yMax = Math.max(...numericValues);
-                }
-                // 血红蛋白优先看趋势细节：不强制把参考上限并入轴范围，避免纵轴被 150 拉得过高
-                if (!isHemoglobin && refLow != null && Number.isFinite(Number(refLow))) {
-                    yMin = (yMin == null) ? Number(refLow) : Math.min(yMin, Number(refLow));
-                    yMax = (yMax == null) ? Number(refLow) : Math.max(yMax, Number(refLow));
-                }
-                if (!isHemoglobin && refHigh != null && Number.isFinite(Number(refHigh))) {
-                    yMin = (yMin == null) ? Number(refHigh) : Math.min(yMin, Number(refHigh));
-                    yMax = (yMax == null) ? Number(refHigh) : Math.max(yMax, Number(refHigh));
-                }
-                if (yMin != null && yMax != null) {
-                    const span = Math.max(1e-6, yMax - yMin);
-                    const pad = span * 0.12;
-                    yMin = yMin - pad;
-                    yMax = yMax + pad;
-                }
-
-                // 血红蛋白专用：按 5 为粒度收敛到数据附近，提升可读性
-                if (isHemoglobin && yMin != null && yMax != null) {
-                    yMin = Math.floor(yMin / 5) * 5;
-                    yMax = Math.ceil(yMax / 5) * 5;
-                    // 防止极端情况下范围过窄导致观感抖动
-                    if (yMax - yMin < 20) {
-                        const mid = (yMax + yMin) / 2;
-                        yMin = Math.floor((mid - 10) / 5) * 5;
-                        yMax = Math.ceil((mid + 10) / 5) * 5;
-                    }
-                }
 
                 const option = {
                     textStyle: { color: colors.text },
@@ -1205,20 +1188,7 @@
                     },
                     yAxis: {
                         type: 'value',
-                        min: (isRbc && yMin != null) ? (Math.floor(yMin * 10) / 10) : (yMin == null ? null : yMin),
-                        max: (isRbc && yMax != null) ? (Math.ceil(yMax * 10) / 10) : (yMax == null ? null : yMax),
-                        // 红细胞不强制 0.1 刻度，交给 ECharts 自动分段，避免刻度标签过密重叠
-                        splitNumber: isRbc ? 6 : (isHemoglobin ? 5 : 5),
-                        interval: isHemoglobin ? 5 : null,
-                        axisLabel: {
-                            color: colors.muted,
-                            hideOverlap: true,
-                            formatter: function(v) {
-                                if (isRbc) return Number(v).toFixed(1);
-                                if (isHemoglobin) return String(Math.round(v));
-                                return v;
-                            }
-                        },
+                        axisLabel: { color: colors.muted },
                         axisLine: { show: false },
                         splitLine: { lineStyle: { color: colors.border, opacity: 0.7 } },
                     },
@@ -1247,7 +1217,14 @@
                 };
 
                 chartInstances[name].setOption(option, true);
+                // 容器尺寸变化/Tab 切换后，主动触发一次 resize，避免图表空白
+                try { chartInstances[name].resize(); } catch (_) {}
             }
+
+            // 再做一次批量延迟 resize，覆盖布局抖动（字体加载/容器刚显示等）
+            requestAnimationFrame(() => resizeAllCharts());
+            setTimeout(resizeAllCharts, 80);
+            setTimeout(resizeAllCharts, 180);
         }
 
         // 响应式

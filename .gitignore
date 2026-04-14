@@ -11,4 +11,7 @@ __pycache__/
 .env
 debug.log
 
+# Local Cursor/IDE config (skills, hooks)
+.cursor/
+
 data/

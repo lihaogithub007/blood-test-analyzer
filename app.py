@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from typing import Optional
 
@@ -6,6 +5,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
+from pathlib import Path
 
 from database import (
     init_db,
@@ -21,6 +21,7 @@ from database import (
     ensure_default_patient,
 )
 from pdf_processor import extract_report_data
+from settings import get_zhipu_api_key
 
 load_dotenv()
 
@@ -29,12 +30,13 @@ app = FastAPI(title="血常规 PDF 分析器")
 # 初始化数据库
 init_db()
 
-API_KEY = os.getenv("ZHIPUAI_API_KEY")
+API_KEY = get_zhipu_api_key()
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @app.get("/")
 async def index():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "static", "index.html"))
+    return FileResponse(str(STATIC_DIR / "index.html"))
 
 
 @app.get("/api/patients")
@@ -58,87 +60,41 @@ async def add_patient(
 
 @app.post("/api/upload")
 async def upload_pdf(
-    file: Optional[UploadFile] = File(None),
-    files: Optional[list[UploadFile]] = File(None),
+    file: UploadFile = File(...),
     patient_id: Optional[int] = Form(None),
     report_type: str = Form("cbc"),
 ):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="请上传 PDF 文件")
+
     if not API_KEY:
-        raise HTTPException(status_code=500, detail="未配置 ZHIPUAI_API_KEY")
+        raise HTTPException(status_code=500, detail="未配置 ZHIPUAI_API_KEY（或 ZHIPU_API_KEY）")
 
-    upload_files: list[UploadFile] = []
-    if files:
-        upload_files.extend(files)
-    if file is not None:
-        upload_files.append(file)
-    if not upload_files:
-        raise HTTPException(status_code=400, detail="请上传至少一个 PDF 文件")
+    pdf_bytes = await file.read()
 
-    processed = []
-    failed = []
-    for f in upload_files:
-        if not f.filename.lower().endswith(".pdf"):
-            failed.append({"filename": f.filename, "error": "文件不是 PDF"})
-            continue
+    try:
+        result = extract_report_data(pdf_bytes, API_KEY, report_type=report_type)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF 解析失败: {str(e)}")
 
-        pdf_bytes = await f.read()
-        try:
-            result = extract_report_data(pdf_bytes, API_KEY, report_type=report_type)
-        except Exception as e:
-            failed.append({"filename": f.filename, "error": f"PDF 解析失败: {str(e)}"})
-            continue
+    report_date = result.get("date") or datetime.now().strftime("%Y-%m-%d")
+    items = result.get("items", [])
+    facts = result.get("facts", [])
 
-        report_date = result.get("date") or datetime.now().strftime("%Y-%m-%d")
-        items = result.get("items", [])
-        facts = result.get("facts", [])
-        if not items and not facts:
-            failed.append({"filename": f.filename, "error": "未能从 PDF 中提取到可用数据"})
-            continue
+    if not items and not facts:
+        raise HTTPException(status_code=400, detail="未能从 PDF 中提取到可用数据")
 
-        report_id = save_report(f.filename, report_date, items, patient_id=patient_id, report_type=report_type)
-        if facts:
-            save_report_facts(report_id, facts)
-
-        processed.append(
-            {
-                "filename": f.filename,
-                "report_id": report_id,
-                "date": report_date,
-                "item_count": len(items),
-                "fact_count": len(facts),
-                "items": items,
-                "facts": facts,
-            }
-        )
-
-    if not processed:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "message": "批量上传失败：没有可入库的数据",
-                "failed_count": len(failed),
-                "failed": failed,
-            },
-        )
-
-    if len(processed) == 1:
-        one = processed[0]
-        one["batch"] = len(upload_files) > 1
-        one["file_count"] = len(upload_files)
-        one["success_count"] = len(processed)
-        one["failed_count"] = len(failed)
-        one["failed"] = failed
-        return one
+    report_id = save_report(file.filename, report_date, items, patient_id=patient_id, report_type=report_type)
+    if facts:
+        save_report_facts(report_id, facts)
 
     return {
-        "batch": True,
-        "file_count": len(upload_files),
-        "success_count": len(processed),
-        "failed_count": len(failed),
-        "total_item_count": sum(x["item_count"] for x in processed),
-        "total_fact_count": sum(x["fact_count"] for x in processed),
-        "results": processed,
-        "failed": failed,
+        "report_id": report_id,
+        "date": report_date,
+        "item_count": len(items),
+        "fact_count": len(facts),
+        "items": items,
+        "facts": facts,
     }
 
 
@@ -186,4 +142,4 @@ async def remove_report(report_id: int):
 
 
 # 静态文件
-app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

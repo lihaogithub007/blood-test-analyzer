@@ -408,6 +408,29 @@ pip install -r requirements.txt
 powershell -ExecutionPolicy Bypass -File .\scripts\auto_commit_push.ps1
 ```
 
+### 每 5 分钟自动检测并推送（推荐）
+
+有代码改动时，最多约 5 分钟内会被提交并 `git push`（轮询间隔为 5 分钟；若刚好在两次轮询之间保存，可能略晚于 5 分钟）。
+
+**方式 A：Windows 任务计划（开机后后台定时执行，不占用终端）**
+
+将下面 `$repo` 改成你的项目路径后，在 PowerShell（管理员可选，一般用户也可创建自己的任务）中执行：
+
+```powershell
+$repo = "D:\claude_code\blood-test-analyzer"
+$task = "blood-test-analyzer-push-every-5min"
+$cmd  = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$repo\scripts\auto_commit_push.ps1`" -RepoDir `"$repo`" -Branch main"
+schtasks /Create /F /SC MINUTE /MO 5 /TN $task /TR $cmd
+```
+
+删除任务：`schtasks /Delete /F /TN blood-test-analyzer-push-every-5min`
+
+**方式 B：前台循环（适合开发时开一个终端挂着）**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\poll_commit_push_every_5min.ps1
+```
+
 ### 设置 Windows 任务计划（确保 5/30 前至少提交一次）
 
 示例：每天 17:30 自动提交一次（你也可以改成任意时间），并使用当前仓库的 `main` 分支：
