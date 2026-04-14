@@ -11,6 +11,11 @@ DEFAULT_LLM_TEMPERATURE = 0.1
 def get_zhipu_api_key() -> Optional[str]:
     return os.getenv("ZHIPUAI_API_KEY") or os.getenv("ZHIPU_API_KEY")
 
+def get_admin_password() -> Optional[str]:
+    pw = os.getenv("ADMIN_PASSWORD")
+    pw = (pw or "").strip()
+    return pw or None
+
 
 def get_effective_llm_config() -> Dict[str, Any]:
     """

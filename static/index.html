@@ -521,6 +521,11 @@
                     <input type="password" id="llmApiKey" placeholder="留空则不修改已保存的密钥" autocomplete="new-password" />
                     <span class="help-text" id="llmKeyHint"></span>
                 </div>
+                <div class="modal-row">
+                    <label for="llmAdminPassword">管理员密码 *</label>
+                    <input type="password" id="llmAdminPassword" placeholder="输入后才允许修改配置" autocomplete="current-password" />
+                    <span class="help-text">仅用于本次保存/清除操作，不会被页面保存。</span>
+                </div>
             </div>
             <div class="modal-actions-row">
                 <button class="btn" type="button" id="llmClearKeyBtn">清除已保存密钥</button>
@@ -754,6 +759,7 @@
                 document.getElementById('llmModel').value = j.model || '';
                 document.getElementById('llmTemp').value = j.temperature != null ? String(j.temperature) : '';
                 document.getElementById('llmApiKey').value = '';
+                document.getElementById('llmAdminPassword').value = '';
                 document.getElementById('llmKeyHint').textContent = j.has_stored_api_key
                     ? '当前：已在本地保存 API Key（输入新密钥可覆盖）。'
                     : '当前：未在页面保存密钥，将使用环境变量（若已设置）。';
@@ -771,6 +777,11 @@
             if (e.target === llmModalMask) closeLlmModal();
         });
         llmSaveBtn.addEventListener('click', async () => {
+            const adminPw = document.getElementById('llmAdminPassword').value;
+            if (!adminPw) {
+                showToast('请输入管理员密码', 'error');
+                return;
+            }
             const body = {
                 api_base_url: document.getElementById('llmApiBase').value.trim(),
                 model: document.getElementById('llmModel').value.trim(),
@@ -789,7 +800,7 @@
             try {
                 const resp = await fetch('/api/settings/llm', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPw },
                     body: JSON.stringify(body),
                 });
                 if (!resp.ok) {
@@ -809,10 +820,15 @@
         });
         llmClearKeyBtn.addEventListener('click', async () => {
             if (!confirm('确定清除数据库中保存的 API Key？清除后将使用环境变量。')) return;
+            const adminPw = document.getElementById('llmAdminPassword').value;
+            if (!adminPw) {
+                showToast('请输入管理员密码', 'error');
+                return;
+            }
             try {
                 const resp = await fetch('/api/settings/llm', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPw },
                     body: JSON.stringify({ api_key: '' }),
                 });
                 if (!resp.ok) {

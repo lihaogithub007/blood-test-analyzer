@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Query
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Query, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
@@ -23,7 +23,7 @@ from database import (
     save_llm_settings_patch,
 )
 from pdf_processor import extract_report_data
-from settings import get_effective_llm_config, get_llm_settings_for_api
+from settings import get_effective_llm_config, get_llm_settings_for_api, get_admin_password
 
 load_dotenv()
 
@@ -162,7 +162,15 @@ async def get_llm_settings():
 
 
 @app.put("/api/settings/llm")
-async def put_llm_settings(body: LLMSettingsUpdate):
+async def put_llm_settings(
+    body: LLMSettingsUpdate,
+    x_admin_password: Optional[str] = Header(default=None, alias="X-Admin-Password"),
+):
+    admin_pw = get_admin_password()
+    if not admin_pw:
+        raise HTTPException(status_code=500, detail="未配置 ADMIN_PASSWORD，无法在页面修改模型配置")
+    if (x_admin_password or "") != admin_pw:
+        raise HTTPException(status_code=401, detail="管理员密码错误")
     patch = body.model_dump(exclude_unset=True)
     save_llm_settings_patch(patch)
     return get_llm_settings_for_api()
