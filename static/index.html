@@ -334,7 +334,6 @@
                 <div class="subtitle">上传检查 PDF → 自动结构化 → 表格/趋势图追踪（本地 SQLite 保存）</div>
             </div>
             <div class="topbar-right">
-                <button class="btn" id="llmSettingsBtn" type="button">模型配置</button>
                 <button class="btn icon ghost" id="themeToggle" title="切换主题（亮/暗）" aria-label="切换主题（亮/暗）"></button>
                 <div class="field">
                     <label for="patientSelect">病人</label>
@@ -495,44 +494,6 @@
             <div class="modal-actions">
                 <button class="btn" id="patientCancelBtn">取消</button>
                 <button class="btn primary" id="patientCreateBtn">创建并切换</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-mask" id="llmModalMask">
-        <div class="modal modal-wide">
-            <div class="modal-title">大模型（视觉）配置</div>
-            <p class="modal-hint">保存到本地数据库 <span class="kbd">data/blood_test.db</span>；未填项沿用默认值。API Key 也可仅使用环境变量 <span class="kbd">ZHIPUAI_API_KEY</span>。</p>
-            <div class="modal-grid" style="grid-template-columns: 1fr;">
-                <div class="modal-row">
-                    <label for="llmApiBase">API 地址（OpenAI 兼容 <code>/chat/completions</code>）</label>
-                    <input type="text" id="llmApiBase" placeholder="https://open.bigmodel.cn/api/paas/v4/chat/completions" autocomplete="off" />
-                </div>
-                <div class="modal-row">
-                    <label for="llmModel">模型名称</label>
-                    <input type="text" id="llmModel" placeholder="glm-4v-flash" autocomplete="off" />
-                </div>
-                <div class="modal-row">
-                    <label for="llmTemp">温度 temperature（0–2）</label>
-                    <input type="number" id="llmTemp" min="0" max="2" step="0.1" placeholder="0.1" />
-                </div>
-                <div class="modal-row">
-                    <label for="llmApiKey">API Key（可选）</label>
-                    <input type="password" id="llmApiKey" placeholder="留空则不修改已保存的密钥" autocomplete="new-password" />
-                    <span class="help-text" id="llmKeyHint"></span>
-                </div>
-                <div class="modal-row">
-                    <label for="llmAdminPassword">管理员密码 *</label>
-                    <input type="password" id="llmAdminPassword" placeholder="输入后才允许修改配置" autocomplete="current-password" />
-                    <span class="help-text">仅用于本次保存/清除操作，不会被页面保存。</span>
-                </div>
-            </div>
-            <div class="modal-actions-row">
-                <button class="btn" type="button" id="llmClearKeyBtn">清除已保存密钥</button>
-                <div class="modal-actions">
-                    <button class="btn" type="button" id="llmCancelBtn">取消</button>
-                    <button class="btn primary" type="button" id="llmSaveBtn">保存</button>
-                </div>
             </div>
         </div>
     </div>
@@ -741,106 +702,6 @@
         patientCancelBtn.addEventListener('click', closePatientModal);
         patientModalMask.addEventListener('click', (e) => {
             if (e.target === patientModalMask) closePatientModal();
-        });
-
-        // 大模型配置
-        const llmModalMask = document.getElementById('llmModalMask');
-        const llmSettingsBtn = document.getElementById('llmSettingsBtn');
-        const llmCancelBtn = document.getElementById('llmCancelBtn');
-        const llmSaveBtn = document.getElementById('llmSaveBtn');
-        const llmClearKeyBtn = document.getElementById('llmClearKeyBtn');
-
-        async function openLlmModal() {
-            try {
-                const resp = await fetch('/api/settings/llm');
-                if (!resp.ok) throw new Error('无法加载配置');
-                const j = await resp.json();
-                document.getElementById('llmApiBase').value = j.api_base_url || '';
-                document.getElementById('llmModel').value = j.model || '';
-                document.getElementById('llmTemp').value = j.temperature != null ? String(j.temperature) : '';
-                document.getElementById('llmApiKey').value = '';
-                document.getElementById('llmAdminPassword').value = '';
-                document.getElementById('llmKeyHint').textContent = j.has_stored_api_key
-                    ? '当前：已在本地保存 API Key（输入新密钥可覆盖）。'
-                    : '当前：未在页面保存密钥，将使用环境变量（若已设置）。';
-                llmModalMask.style.display = 'flex';
-            } catch (e) {
-                showToast(e.message || '加载配置失败', 'error');
-            }
-        }
-        function closeLlmModal() {
-            llmModalMask.style.display = 'none';
-        }
-        llmSettingsBtn.addEventListener('click', openLlmModal);
-        llmCancelBtn.addEventListener('click', closeLlmModal);
-        llmModalMask.addEventListener('click', (e) => {
-            if (e.target === llmModalMask) closeLlmModal();
-        });
-        llmSaveBtn.addEventListener('click', async () => {
-            const adminPw = document.getElementById('llmAdminPassword').value;
-            if (!adminPw) {
-                showToast('请输入管理员密码', 'error');
-                return;
-            }
-            const body = {
-                api_base_url: document.getElementById('llmApiBase').value.trim(),
-                model: document.getElementById('llmModel').value.trim(),
-            };
-            const tRaw = document.getElementById('llmTemp').value.trim();
-            if (tRaw !== '') {
-                const t = parseFloat(tRaw);
-                if (Number.isNaN(t)) {
-                    showToast('温度请填写数字', 'error');
-                    return;
-                }
-                body.temperature = t;
-            }
-            const key = document.getElementById('llmApiKey').value.trim();
-            if (key) body.api_key = key;
-            try {
-                const resp = await fetch('/api/settings/llm', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPw },
-                    body: JSON.stringify(body),
-                });
-                if (!resp.ok) {
-                    let msg = '保存失败';
-                    try {
-                        const err = await resp.json();
-                        msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
-                    } catch (_) {}
-                    showToast(msg, 'error');
-                    return;
-                }
-                showToast('已保存模型配置', 'success');
-                closeLlmModal();
-            } catch (e) {
-                showToast(e.message || '保存失败', 'error');
-            }
-        });
-        llmClearKeyBtn.addEventListener('click', async () => {
-            if (!confirm('确定清除数据库中保存的 API Key？清除后将使用环境变量。')) return;
-            const adminPw = document.getElementById('llmAdminPassword').value;
-            if (!adminPw) {
-                showToast('请输入管理员密码', 'error');
-                return;
-            }
-            try {
-                const resp = await fetch('/api/settings/llm', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPw },
-                    body: JSON.stringify({ api_key: '' }),
-                });
-                if (!resp.ok) {
-                    showToast('清除失败', 'error');
-                    return;
-                }
-                document.getElementById('llmApiKey').value = '';
-                document.getElementById('llmKeyHint').textContent = '已清除本地保存的密钥，将使用环境变量。';
-                showToast('已清除保存的 API Key', 'success');
-            } catch (e) {
-                showToast(e.message || '操作失败', 'error');
-            }
         });
 
         patientCreateBtn.addEventListener('click', async () => {

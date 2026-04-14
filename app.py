@@ -1,12 +1,11 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Query, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from pathlib import Path
-from pydantic import BaseModel, Field
 
 from database import (
     init_db,
@@ -20,10 +19,9 @@ from database import (
     list_patients,
     create_patient,
     ensure_default_patient,
-    save_llm_settings_patch,
 )
 from pdf_processor import extract_report_data
-from settings import get_effective_llm_config, get_llm_settings_for_api, get_admin_password
+from settings import get_effective_llm_config
 
 load_dotenv()
 
@@ -33,15 +31,6 @@ app = FastAPI(title="血常规 PDF 分析器")
 init_db()
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-
-
-class LLMSettingsUpdate(BaseModel):
-    """部分更新：未包含的字段保持不变；api_key 传空字符串表示清除已保存的密钥。"""
-
-    api_key: Optional[str] = Field(default=None, description="新密钥；省略则不修改；空字符串清除库内密钥")
-    api_base_url: Optional[str] = None
-    model: Optional[str] = None
-    temperature: Optional[float] = None
 
 
 @app.get("/")
@@ -81,7 +70,7 @@ async def upload_pdf(
     if not llm.get("api_key"):
         raise HTTPException(
             status_code=500,
-            detail="未配置 API Key：请在「模型配置」中填写，或设置环境变量 ZHIPUAI_API_KEY",
+            detail="未配置 API Key：请设置环境变量 ZHIPUAI_API_KEY（或 ZHIPU_API_KEY）",
         )
 
     pdf_bytes = await file.read()
@@ -153,27 +142,6 @@ async def remove_report(report_id: int):
     if not delete_report(report_id):
         raise HTTPException(status_code=404, detail="报告不存在")
     return {"ok": True}
-
-
-@app.get("/api/settings/llm")
-async def get_llm_settings():
-    """返回当前生效的大模型连接参数（不含 API Key 明文）。"""
-    return get_llm_settings_for_api()
-
-
-@app.put("/api/settings/llm")
-async def put_llm_settings(
-    body: LLMSettingsUpdate,
-    x_admin_password: Optional[str] = Header(default=None, alias="X-Admin-Password"),
-):
-    admin_pw = get_admin_password()
-    if not admin_pw:
-        raise HTTPException(status_code=500, detail="未配置 ADMIN_PASSWORD，无法在页面修改模型配置")
-    if (x_admin_password or "") != admin_pw:
-        raise HTTPException(status_code=401, detail="管理员密码错误")
-    patch = body.model_dump(exclude_unset=True)
-    save_llm_settings_patch(patch)
-    return get_llm_settings_for_api()
 
 
 # 静态文件
