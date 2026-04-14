@@ -4,7 +4,7 @@ import json
 import re
 import logging
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import httpx
 import fitz  # PyMuPDF
 
@@ -263,7 +263,13 @@ def fix_json(text: str) -> str:
     return text
 
 
-def extract_report_data(pdf_bytes: bytes, api_key: str, report_type: str = "cbc") -> Dict:
+def extract_report_data(
+    pdf_bytes: bytes,
+    api_key: str,
+    report_type: str = "cbc",
+    *,
+    llm: Optional[Dict[str, Any]] = None,
+) -> Dict:
     """
     从 PDF 中提取报告数据（按 report_type 选择抽取 schema）
     返回: {"date": "YYYY-MM-DD", "items": [...] } 或 {"date": "...", "facts": [...]}
@@ -287,10 +293,22 @@ def extract_report_data(pdf_bytes: bytes, api_key: str, report_type: str = "cbc"
             "image_url": {"url": "data:image/png;base64,{}".format(img_b64)}
         })
 
+    cfg = llm or {}
+    api_url = (cfg.get("api_base_url") or "").strip() or ZHIPU_API_URL
+    model_name = (cfg.get("model") or "").strip() or "glm-4v-flash"
+    temp = cfg.get("temperature")
+    if temp is None:
+        temp_f = 0.1
+    else:
+        try:
+            temp_f = float(temp)
+        except (TypeError, ValueError):
+            temp_f = 0.1
+
     payload = {
-        "model": "glm-4v-flash",
+        "model": model_name,
         "messages": [{"role": "user", "content": content}],
-        "temperature": 0.1,
+        "temperature": temp_f,
     }
 
     headers = {
@@ -298,8 +316,8 @@ def extract_report_data(pdf_bytes: bytes, api_key: str, report_type: str = "cbc"
         "Content-Type": "application/json",
     }
 
-    logger.info("调用智谱 API...")
-    resp = httpx.post(ZHIPU_API_URL, json=payload, headers=headers, timeout=120)
+    logger.info("调用视觉模型 API: %s model=%s", api_url, model_name)
+    resp = httpx.post(api_url, json=payload, headers=headers, timeout=120)
     logger.info("API 响应状态: %d", resp.status_code)
 
     if resp.status_code != 200:

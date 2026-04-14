@@ -1,7 +1,7 @@
 from __future__ import annotations
 import sqlite3
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import re
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "blood_test.db")
@@ -194,6 +194,13 @@ def init_db():
             unit TEXT,
             ref_low REAL,
             ref_high REAL
+        );
+        CREATE TABLE IF NOT EXISTS llm_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            api_key TEXT,
+            api_base_url TEXT,
+            model TEXT,
+            temperature REAL
         );
     """)
     # 兼容旧库：给 reports 表补列（尽量不破坏已有数据）
@@ -444,3 +451,60 @@ def get_report_detail(report_id: int) -> Optional[Dict]:
     result["items"] = [{**dict(i), "display_name": normalize_item_name(i["name"])} for i in items]
     result["facts"] = get_report_facts(report_id)
     return result
+
+
+def get_llm_settings_row() -> Dict[str, Any]:
+    """单行配置：无记录时返回空字典。"""
+    conn = _get_conn()
+    row = conn.execute(
+        "SELECT api_key, api_base_url, model, temperature FROM llm_settings WHERE id = 1"
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def save_llm_settings_patch(updates: Dict[str, Any]) -> None:
+    """
+    合并写入 id=1。updates 仅包含需要更新的键。
+    api_key 传空字符串表示清除数据库中的密钥（回退到环境变量）。
+    """
+    cur = get_llm_settings_row()
+    base = {
+        "api_key": cur.get("api_key"),
+        "api_base_url": cur.get("api_base_url"),
+        "model": cur.get("model"),
+        "temperature": cur.get("temperature"),
+    }
+    for k, v in updates.items():
+        if k == "api_key":
+            if v is None or (isinstance(v, str) and v.strip() == ""):
+                base["api_key"] = None
+            else:
+                base["api_key"] = str(v).strip() or None
+        elif k == "api_base_url":
+            base["api_base_url"] = None if v in (None, "") else str(v).strip() or None
+        elif k == "model":
+            base["model"] = None if v in (None, "") else str(v).strip() or None
+        elif k == "temperature":
+            base["temperature"] = v
+
+    conn = _get_conn()
+    conn.execute(
+        """
+        INSERT INTO llm_settings (id, api_key, api_base_url, model, temperature)
+        VALUES (1, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          api_key=excluded.api_key,
+          api_base_url=excluded.api_base_url,
+          model=excluded.model,
+          temperature=excluded.temperature
+        """,
+        (
+            base["api_key"],
+            base["api_base_url"],
+            base["model"],
+            base["temperature"],
+        ),
+    )
+    conn.commit()
+    conn.close()
