@@ -276,13 +276,17 @@
         table.reports-table th { position: sticky; top: 0; background: var(--panel); z-index: 1; color: var(--text); opacity: 0.86; text-align: left; }
         table.reports-table tbody tr:nth-child(2n) td { background: rgba(148, 163, 184, 0.06); }
         table.reports-table tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
-        table.reports-table tbody tr.report-row-abnormal td { background: rgba(239, 68, 68, 0.14); }
-        html[data-theme="dark"] table.reports-table tbody tr.report-row-abnormal td { background: rgba(239, 68, 68, 0.22); }
-        table.reports-table tbody tr.report-row-abnormal:hover td { background: rgba(239, 68, 68, 0.22); }
-        html[data-theme="dark"] table.reports-table tbody tr.report-row-abnormal:hover td { background: rgba(239, 68, 68, 0.30); }
+        /* 报告表格：仅异常单元格标红背景（避免整行误导） */
         table.reports-table td { color: var(--text); white-space: nowrap; }
         .cell-muted { color: var(--muted); }
-        .cell-abnormal { color: var(--danger); font-weight: 700; }
+        .cell-abnormal {
+            color: var(--danger);
+            font-weight: 700;
+            background: rgba(239, 68, 68, 0.14);
+        }
+        html[data-theme="dark"] .cell-abnormal { background: rgba(239, 68, 68, 0.22); }
+        table.reports-table tbody tr:hover td.cell-abnormal { background: rgba(239, 68, 68, 0.22); }
+        html[data-theme="dark"] table.reports-table tbody tr:hover td.cell-abnormal { background: rgba(239, 68, 68, 0.30); }
         .cell-unit { color: var(--muted); margin-left: 4px; }
         .cell-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
@@ -995,14 +999,6 @@
                         if (!map[dn] || (map[dn].value == null && item.value != null)) map[dn] = item;
                     }
 
-                    // 仅按“当前显示的列”判断是否需要整行标红
-                    const rowAbnormal = cols.some(c => {
-                        const it = map[c];
-                        if (!it || it.value == null) return false;
-                        if (it.ref_low == null || it.ref_high == null) return false;
-                        return it.value < it.ref_low || it.value > it.ref_high;
-                    });
-
                     const tds = cols.map(c => {
                         const it = map[c];
                         if (!it || it.value == null) return `<td class="cell-muted">-</td>`;
@@ -1015,7 +1011,7 @@
                     }).join('');
 
                     return `
-                        <tr class="${rowAbnormal ? 'report-row-abnormal' : ''}">
+                        <tr>
                             <td>${r.report_date || '-'}</td>
                             ${tds}
                             <td><button class="report-delete" onclick="deleteReport(${r.id})">删除</button></td>

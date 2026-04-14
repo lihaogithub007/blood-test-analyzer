@@ -252,13 +252,16 @@ table.reports-table th, table.reports-table td { padding: 10px 12px; border-bott
 table.reports-table th { position: sticky; top: 0; background: var(--panel); z-index: 1; color: var(--text); opacity: 0.86; text-align: left; }
 table.reports-table tbody tr:nth-child(2n) td { background: rgba(148, 163, 184, 0.06); }
 table.reports-table tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
-table.reports-table tbody tr.report-row-abnormal td { background: rgba(239, 68, 68, 0.14); }
-html[data-theme="dark"] table.reports-table tbody tr.report-row-abnormal td { background: rgba(239, 68, 68, 0.22); }
-table.reports-table tbody tr.report-row-abnormal:hover td { background: rgba(239, 68, 68, 0.22); }
-html[data-theme="dark"] table.reports-table tbody tr.report-row-abnormal:hover td { background: rgba(239, 68, 68, 0.30); }
 table.reports-table td { color: var(--text); white-space: nowrap; }
 .cell-muted { color: var(--muted); }
-.cell-abnormal { color: var(--danger); font-weight: 700; }
+.cell-abnormal {
+  color: var(--danger);
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.14);
+}
+html[data-theme="dark"] .cell-abnormal { background: rgba(239, 68, 68, 0.22); }
+table.reports-table tbody tr:hover td.cell-abnormal { background: rgba(239, 68, 68, 0.22); }
+html[data-theme="dark"] table.reports-table tbody tr:hover td.cell-abnormal { background: rgba(239, 68, 68, 0.30); }
 .cell-unit { color: var(--muted); margin-left: 4px; }
 .cell-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 

@@ -350,14 +350,6 @@ function renderReports() {
         if (!map[dn] || (map[dn].value == null && item.value != null)) map[dn] = item;
       }
 
-      // 仅按“当前显示的列”判断是否需要整行标红
-      const rowAbnormal = cols.some(c => {
-        const it = map[c];
-        if (!it || it.value == null) return false;
-        if (it.ref_low == null || it.ref_high == null) return false;
-        return it.value < it.ref_low || it.value > it.ref_high;
-      });
-
       const tds = cols.map(c => {
         const it = map[c];
         if (!it || it.value == null) return `<td class="cell-muted">-</td>`;
@@ -370,7 +362,7 @@ function renderReports() {
       }).join('');
 
       return `
-        <tr class="${rowAbnormal ? 'report-row-abnormal' : ''}">
+        <tr>
           <td>${r.report_date || '-'}</td>
           ${tds}
           <td><button class="report-delete" onclick="deleteReport(${r.id})">删除</button></td>
