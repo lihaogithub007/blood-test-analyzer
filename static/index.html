@@ -279,15 +279,12 @@
         /* 报告表格：仅异常单元格标红背景（避免整行误导） */
         table.reports-table td { color: var(--text); white-space: nowrap; }
         .cell-muted { color: var(--muted); }
-        /* 更高优先级：盖过斑马纹/hover */
+        /* 异常值不再使用红色背景（仅保留文字标识） */
         table.reports-table td.cell-abnormal {
             color: var(--danger);
             font-weight: 700;
-            background: rgba(239, 68, 68, 0.14);
+            background: transparent;
         }
-        html[data-theme="dark"] table.reports-table td.cell-abnormal { background: rgba(239, 68, 68, 0.22); }
-        table.reports-table tbody tr:hover td.cell-abnormal { background: rgba(239, 68, 68, 0.22); }
-        html[data-theme="dark"] table.reports-table tbody tr:hover td.cell-abnormal { background: rgba(239, 68, 68, 0.30); }
         .cell-unit { color: var(--muted); margin-left: 4px; }
         .cell-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
